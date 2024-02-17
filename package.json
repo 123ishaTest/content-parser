@@ -1,11 +1,11 @@
 {
-  "name": "@123ishatest/ts-library-template",
-  "version": "0.2.1",
-  "description": "A template to help you (me) quickly get started with publishing an NPM package",
-  "homepage": "https://github.com/123ishaTest/ts-library-template",
+  "name": "@123ishatest/content-parser",
+  "version": "0.0.0",
+  "description": "A utility library that parses YAML files based on Zod schemas",
+  "homepage": "https://github.com/123ishaTest/content-parser",
   "bugs": {
     "email": "ishadijcks@gmail.com",
-    "url": "https://github.com/123ishaTest/ts-library-template/issues"
+    "url": "https://github.com/123ishaTest/content-parser/issues"
   },
   "author": "Isha",
   "license": "MIT",
