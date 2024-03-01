@@ -1,95 +1,116 @@
-import { ContentParserConfig } from '@/ContentParserConfig.ts';
+import { ContentParserConfig, ContentParserConfigInput, contentParserConfigSchema } from '@/ContentParserConfig.ts';
 import { glob } from 'glob';
 import * as fs from 'fs';
 import { parse } from 'yaml';
-import { ParsedContent } from '@/ParsedContent.ts';
 import { z } from 'zod';
+import { ParseResult } from '@/ParseResult.ts';
+import { ContentError, ContentErrorType } from '@/ContentError.ts';
+import { fromZodError } from 'zod-validation-error';
 
 export class ContentParser<const T extends Record<string, S>, S extends z.AnyZodObject> {
   types: T;
   config: ContentParserConfig;
 
-  // TODO(@Isha): Clean this instantiation and clearing up
-  content!: Record<keyof T, Record<string, z.infer<T[keyof T]>>>;
-
-  constructor(types: T, config: ContentParserConfig) {
+  constructor(types: T, config: ContentParserConfigInput) {
+    const parsedConfig = contentParserConfigSchema.safeParse(config);
+    if (!parsedConfig.success) {
+      throw Error(fromZodError(parsedConfig.error).toString());
+    }
+    this.config = parsedConfig.data;
     this.types = types;
-    this.config = config;
-
-    this.clearContent();
   }
 
-  public getAllYmlFiles(): string[] {
-    // TODO(@Isha): Add include and exclude
-    return glob.sync(`${this.config.path}/**/*.yml`);
+  private getEmptyContent(): Record<keyof T, Record<string, z.infer<T[keyof T]>>> {
+    // TODO(@Isha): Clean this instantiation and clearing up
+    // @ts-ignore
+    const content = {};
+    Object.keys(this.types).map((type) => {
+      // @ts-ignore
+      content[type] = {};
+    });
+    // @ts-ignore
+    return content;
   }
 
-  public getAllYmlData(): ParsedContent[] {
-    const filePaths = this.getAllYmlFiles();
+  public parseContent(): ParseResult<Record<keyof T, Record<string, z.infer<T[keyof T]>>>> {
+    const content = this.getEmptyContent();
+    const errors: ContentError[] = [];
 
-    this.debug(`Reading ${filePaths.length} files from`, this.config.path);
+    const filePaths = glob.sync(`${this.config.root}/**/*.yml`);
+    this.debug(`Reading ${filePaths.length} files from`, this.config.root);
 
-    return filePaths.map((filePath) => {
+    const parsedYaml = filePaths.flatMap((filePath) => {
       const extension = filePath.replace('.yml', '').split('.').pop() as string;
-      const fileName = filePath.replace(this.config.path, '');
+      const fileName = filePath.replace(this.config.root, '');
 
       try {
         const parsedData = parse(fs.readFileSync(filePath, 'utf8'));
-        return {
-          file: fileName,
-          type: extension,
-          data: parsedData,
-        };
+        return [
+          {
+            file: fileName,
+            type: extension,
+            data: parsedData,
+          },
+        ];
       } catch (e) {
-        const message = `Could not parse file '${fileName}'. Is it valid yaml?`;
-        console.error(message);
-        throw new Error(message);
+        errors.push({
+          file: filePath,
+          type: ContentErrorType.InvalidYaml,
+          message: `Could not parse file '${fileName}'. Is it valid yaml?`,
+        });
       }
+      return [];
     });
-  }
 
-  public parseAllYamlFiles(): void {
-    this.clearContent();
-
-    const parsedContent = this.getAllYmlData();
-    parsedContent.forEach((content) => {
-      const schema = this.types[content.type];
+    parsedYaml.forEach((yaml) => {
+      const schema = this.types[yaml.type];
       if (!schema) {
-        throw new Error(`Unrecognized contentType '${content.type}' in file '${content.file}'`);
+        errors.push({
+          file: yaml.file,
+          type: ContentErrorType.UnrecognizedContentType,
+          message: `Unrecognized contentType '${yaml.type}'`,
+        });
+        return;
       }
 
-      const zodResult = schema.safeParse(content.data);
+      const zodResult = schema.safeParse(yaml.data);
       if (!zodResult.success) {
-        console.error(zodResult.error);
-        console.error(`Could not load file '${content.file}'`);
-        throw new Error(zodResult.error.toString());
+        const validationError = fromZodError(zodResult.error);
+
+        errors.push({
+          file: yaml.file,
+          type: ContentErrorType.ZodValidationFailed,
+          message: validationError.toString(),
+        });
+        return;
       }
 
-      const id = content.data[this.config.idKey];
+      const id = yaml.data[this.config.idKey];
       if (!id) {
-        const message = `Content does not seem to have the global idKey '${this.config.idKey}' in file ${content.file}`;
-        console.error(message);
-        throw new Error(message);
+        errors.push({
+          file: yaml.file,
+          type: ContentErrorType.MissingGlobalIdKey,
+          message: `Content does not seem to have the global idKey '${this.config.idKey}'`,
+        });
+        return;
       }
 
-      if (this.content[content.type][id]) {
-        console.error(`Duplicate id '${id}'`);
+      if (content[yaml.type][id]) {
+        errors.push({
+          file: yaml.file,
+          type: ContentErrorType.DuplicateId,
+          message: `Duplicate id '${id}'`,
+        });
+        return;
       }
-      this.content[content.type][id] = zodResult.data as z.infer<S>;
+      content[yaml.type][id] = zodResult.data as z.infer<S>;
     });
-  }
 
-  public getContent<const K extends keyof T>(key: K): Record<string, z.infer<T[K]>> {
-    return this.content[key];
-  }
-
-  private clearContent(): void {
-    // @ts-ignore
-    this.content = {};
-    Object.keys(this.types).map((type) => {
-      // @ts-ignore
-      this.content[type] = {};
-    });
+    return {
+      content: content,
+      errors: errors,
+      success: errors.length === 0,
+    };
   }
 
   private debug(...args: any[]) {
