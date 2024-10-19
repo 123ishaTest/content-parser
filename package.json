@@ -1,6 +1,6 @@
 {
   "name": "@123ishatest/content-parser",
-  "version": "0.0.1",
+  "version": "1.0.0",
   "description": "A utility library that parses YAML files based on Zod schemas",
   "homepage": "https://github.com/123ishaTest/content-parser",
   "bugs": {

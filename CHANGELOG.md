@@ -1,6 +1,6 @@
 # @123ishatest/content-parser
 
-## 0.0.1
+## 1.0.0
 
 ### Patch Changes
 
