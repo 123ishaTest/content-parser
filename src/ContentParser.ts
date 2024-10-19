@@ -1,6 +1,6 @@
 import { ContentParserConfig, ContentParserConfigInput, contentParserConfigSchema } from '@/ContentParserConfig.ts';
 import { glob } from 'glob';
-import * as fs from 'fs';
+import { readFileSync } from 'node:fs';
 import { parse } from 'yaml';
 import { z } from 'zod';
 import { ParseResult } from '@/ParseResult.ts';
@@ -48,7 +48,7 @@ export class ContentParser<const T extends Record<string, S>, S extends z.AnyZod
       const fileName = filePath.replace(this.config.root, '');
 
       try {
-        const parsedData = parse(fs.readFileSync(filePath, 'utf8'));
+        const parsedData = parse(readFileSync(filePath, 'utf8'));
         return [
           {
             file: fileName,

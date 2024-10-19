@@ -13,6 +13,8 @@ export default defineConfig({
     },
     rollupOptions: {
       external: [
+        // TODO(@Isha): Needed to fix `path-scurry` depending on fs
+        'fs',
         ...Object.keys(pkg.dependencies), // don't bundle dependencies
         /^node:.*/, // don't bundle built-in Node.js modules (use protocol imports!)
       ],
