@@ -3,23 +3,20 @@ import { ContentParser } from '@/ContentParser.ts';
 import * as path from 'node:path';
 import { ItemDetailSchema, LootDetailSchema } from '../models/Schemas.ts';
 
-const contentParser = new ContentParser(
-  {
-    item: ItemDetailSchema,
-    loot: LootDetailSchema,
-  },
-  {
-    root: path.dirname(__dirname) + '/example',
-    debug: true,
-  },
-);
+const parser = new ContentParser({
+  item: ItemDetailSchema,
+  loot: LootDetailSchema,
+});
 
-const result = contentParser.parseContent();
+parser.parse({
+  root: path.dirname(__dirname) + '/example',
+  debug: true,
+});
 
 describe('Type Safety', () => {
   test('retrieve all content by type', () => {
     // Act
-    const items = result.content['item'];
+    const items = parser.getContent('item');
 
     // Assert
     expect(Object.values(items)).toHaveLength(2);
@@ -28,7 +25,7 @@ describe('Type Safety', () => {
   test('compile error on wrong type', () => {
     // Act
     // @ts-expect-error key 'items' does not exist
-    const items = result.content['items'] ?? [];
+    const items = parser.getContent('items') ?? [];
 
     expect(Object.values(items)).toHaveLength(0);
   });

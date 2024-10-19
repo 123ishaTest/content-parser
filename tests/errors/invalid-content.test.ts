@@ -4,20 +4,17 @@ import * as path from 'node:path';
 import { ItemDetailSchema, LootDetailSchema } from '../models/Schemas.ts';
 import { ContentErrorType } from '@/ContentError.ts';
 
-const contentParser = new ContentParser(
-  {
-    item: ItemDetailSchema,
-    loot: LootDetailSchema,
-  },
-  {
-    root: path.dirname(__dirname) + '/errors',
-  },
-);
+const parser = new ContentParser({
+  item: ItemDetailSchema,
+  loot: LootDetailSchema,
+});
 
 describe('Invalid content parsing', () => {
   test('detects missing type', () => {
     // Arrange
-    const result = contentParser.parseContent();
+    const result = parser.parse({
+      root: path.dirname(__dirname) + '/errors',
+    });
 
     // Act
     const contentTypeErrors = result.errors.filter((e) => e.type === ContentErrorType.UnrecognizedContentType);
@@ -29,7 +26,9 @@ describe('Invalid content parsing', () => {
 
   test('detects missing field', () => {
     // Arrange
-    const result = contentParser.parseContent();
+    const result = parser.parse({
+      root: path.dirname(__dirname) + '/errors',
+    });
 
     console.log(result);
     // Act

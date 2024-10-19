@@ -1,9 +1,7 @@
 import { ContentError } from '@/ContentError.ts';
 
-export interface ParseResult<T> {
+export interface ParseResult {
   success: boolean;
-
-  content: T;
 
   errors: ContentError[];
 }

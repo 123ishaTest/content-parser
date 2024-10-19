@@ -9,14 +9,11 @@ import { fromZodError } from 'zod-validation-error';
 
 export class ContentParser<const T extends Record<string, S>, S extends z.AnyZodObject> {
   types: T;
-  config: ContentParserConfig;
 
-  constructor(types: T, config: ContentParserConfigInput) {
-    const parsedConfig = contentParserConfigSchema.safeParse(config);
-    if (!parsedConfig.success) {
-      throw Error(fromZodError(parsedConfig.error).toString());
-    }
-    this.config = parsedConfig.data;
+  config!: ContentParserConfig;
+  content!: Record<keyof T, Record<string, z.infer<T[keyof T]>>>;
+
+  constructor(types: T) {
     this.types = types;
   }
 
@@ -32,7 +29,14 @@ export class ContentParser<const T extends Record<string, S>, S extends z.AnyZod
     return content;
   }
 
-  public parseContent(): ParseResult<Record<keyof T, Record<string, z.infer<T[keyof T]>>>> {
+  public parse(rawConfig: ContentParserConfigInput): ParseResult {
+    // Parse config
+    const parsedConfig = contentParserConfigSchema.safeParse(rawConfig);
+    if (!parsedConfig.success) {
+      throw Error(fromZodError(parsedConfig.error).toString());
+    }
+    this.config = parsedConfig.data;
+
     const content = this.getEmptyContent();
     const errors: ContentError[] = [];
 
@@ -106,8 +110,8 @@ export class ContentParser<const T extends Record<string, S>, S extends z.AnyZod
       content[yaml.type][id] = zodResult.data as z.infer<S>;
     });
 
+    this.content = content;
     return {
-      content: content,
       errors: errors,
       success: errors.length === 0,
     };
@@ -117,5 +121,9 @@ export class ContentParser<const T extends Record<string, S>, S extends z.AnyZod
     if (this.config.debug) {
       console.log(...args);
     }
+  }
+
+  public getContent<const K extends keyof T>(key: K): Record<string, z.infer<T[K]>> {
+    return this.content[key];
   }
 }
