@@ -9,13 +9,11 @@
 Create a content type with a [Zod](https://zod.dev) schema.
 
 ```ts
-export const ItemDetailSchema = z
-  .object({
-    hrid: z.string(),
-    name: z.string(),
-    description: z.string(),
-  })
-  .strict();
+export const ItemDetailSchema = z.object({
+  hrid: z.string(),
+  name: z.string(),
+  description: z.string(),
+}).strict();
 ```
 
 Create your content in YAML files.
